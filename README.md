@@ -15,11 +15,11 @@ Application web premium pour évaluer la vulnérabilité aux risques dans 5 doma
 
 Le projet est configuré en **export statique** (`output: "export"`).
 
-Cela signifie:
+Conséquences:
 
-- Pas besoin de Node.js sur le serveur de production (shared hosting OK)
-- Le build génère des fichiers HTML/CSS/JS dans `out/`
-- Déploiement simple par `scp`, `rsync`, FTP ou File Manager cPanel
+- Le build produit des fichiers statiques dans `out/`
+- Déploiement possible sur shared hosting, cPanel, Netlify, Vercel, Cloudflare Pages, VPS, etc.
+- Pas d'exécution Node.js requise en production pour cette version
 
 ## Scripts utiles
 
@@ -40,120 +40,123 @@ npm install
 npm run dev
 ```
 
-Ouvrir: `http://localhost:3000`
+Ouvrir `http://localhost:3000`.
 
 ---
 
-## Déploiement détaillé: Shared Hosting (HostGator)
+## Déploiement universel (méthode recommandée)
 
-### Objectif: publier sur `acode.tech/tasse` sans toucher au site actuel
+## 1) Choisir le mode URL
 
-Le site principal reste inchangé. On déploie uniquement dans un dossier dédié.
+- Déploiement en racine: `https://example.com/`
+- Déploiement en sous-dossier: `https://example.com/tasse/`
 
-### 1. Build pour sous-dossier `/tasse`
+## 2) Générer le bon build
 
 ```bash
-cd tasse-score-premium
-npm install
+# racine
+npm run build:root
+
+# sous-dossier /tasse
 npm run build:tasse
 ```
 
-Le build final sera dans `out/`.
+## 3) Publier le dossier `out/`
 
-### 2. Créer le dossier cible sur le serveur
+Copier **le contenu** de `out/` dans le dossier web cible de ton hébergement.
 
-```bash
-ssh -i ~/.ssh/safetyplant_premium_ed25519 -o IdentitiesOnly=yes zezeuute@108.167.172.119 \
-"mkdir -p ~/public_html/website_2adfe34f/tasse"
-```
+Exemples de dossier cible:
 
-### 3. Uploader les fichiers statiques
+- Racine du site: `public_html/`
+- Sous-dossier: `public_html/tasse/`
 
-```bash
-scp -i ~/.ssh/safetyplant_premium_ed25519 -o IdentitiesOnly=yes -r out/* \
-zezeuute@108.167.172.119:~/public_html/website_2adfe34f/tasse/
-```
-
-### 4. Vérifier
+## 4) Vérifier les routes
 
 ```bash
-curl -I https://acode.tech/tasse/
-curl -I https://acode.tech/tasse/assessment/
-curl -I https://acode.tech/tasse/results/
-curl -I https://acode.tech/tasse/report/
+curl -I https://example.com/
+curl -I https://example.com/assessment/
+curl -I https://example.com/results/
 ```
 
-Tu dois obtenir `HTTP 200`.
-
-### 5. Mise à jour future
-
-Pour chaque nouvelle version:
+Pour un sous-dossier `/tasse`:
 
 ```bash
-npm run build:tasse
-scp -i ~/.ssh/safetyplant_premium_ed25519 -o IdentitiesOnly=yes -r out/* \
-zezeuute@108.167.172.119:~/public_html/website_2adfe34f/tasse/
+curl -I https://example.com/tasse/
+curl -I https://example.com/tasse/assessment/
+curl -I https://example.com/tasse/results/
 ```
-
-Aucun impact sur `public_html` racine tant que tu restes dans `.../tasse`.
 
 ---
 
-## Déploiement HostGator sans SSH (cPanel File Manager)
+## Shared Hosting (HostGator, Bluehost, OVH, cPanel)
 
-Si SSH n'est pas disponible:
+## Option A: cPanel File Manager (sans SSH)
 
-1. `npm run build:tasse`
-2. Compresser localement le dossier `out/` en zip
-3. Dans cPanel > File Manager, aller dans `public_html/website_2adfe34f/tasse`
+1. `npm run build:root` ou `npm run build:tasse`
+2. Compresser `out/` en zip
+3. Dans cPanel > File Manager, aller au dossier cible (`public_html` ou `public_html/tasse`)
 4. Upload du zip
 5. Extract du zip
-6. Vérifier que `index.html` est directement dans `tasse/`
+6. Vérifier que `index.html` est bien au bon niveau
+
+## Option B: SSH/SCP (générique, sans info sensible)
+
+```bash
+# Exemple générique (placeholders)
+ssh -i ~/.ssh/<private_key> -o IdentitiesOnly=yes <user>@<host> "mkdir -p <target_folder>"
+scp -i ~/.ssh/<private_key> -o IdentitiesOnly=yes -r out/* <user>@<host>:<target_folder>/
+```
+
+Remplace toujours:
+
+- `<private_key>`
+- `<user>`
+- `<host>`
+- `<target_folder>`
 
 ---
 
-## Déploiement sur d'autres plateformes
+## Netlify
 
-## 1) cPanel shared hosting (générique)
-
-Même procédure que HostGator:
-
-- Build static (`npm run build:root` ou `npm run build:tasse`)
-- Upload contenu de `out/` dans le dossier web cible
-
-## 2) Netlify (Static)
-
-- Connecter repo GitHub
-- Build command: `npm run build:root` (ou `npm run build:tasse` selon besoin)
+- Connecter le repo GitHub
+- Build command: `npm run build:root`
 - Publish directory: `out`
 
-## 3) Cloudflare Pages (Static)
+Pour un sous-dossier, préférer un domaine/sous-domaine dédié, ou conserver la stratégie `build:tasse` selon ton routing.
 
-- Connecter repo
+---
+
+## Cloudflare Pages
+
+- Connecter le repo
+- Build command: `npm run build:root`
+- Build output directory: `out`
+
+---
+
+## Vercel
+
+Version actuelle (export statique):
+
 - Build command: `npm run build:root`
 - Output directory: `out`
 
-## 4) Vercel
+Si tu veux plus tard du SSR/API, retire `output: "export"` et adapte le déploiement Vercel standard.
 
-Deux options:
+---
 
-- Option A: rester en export statique (comme ci-dessus)
-- Option B: supprimer `output: "export"` si tu veux des fonctionnalités serveur plus tard
+## VPS (Nginx)
 
-## 5) VPS (Nginx + fichiers statiques)
+1. Build local: `npm run build:root` ou `npm run build:tasse`
+2. Copier `out/` sur le serveur
+3. Servir les fichiers avec Nginx
 
-Build:
-
-```bash
-npm run build:tasse
-```
-
-Copier `out/` vers `/var/www/tasse` puis config Nginx:
+Exemple Nginx pour sous-dossier `/tasse`:
 
 ```nginx
 server {
   listen 80;
-  server_name acode.tech;
+  server_name example.com;
 
   root /var/www/main-site;
   index index.html;
@@ -165,7 +168,7 @@ server {
 }
 ```
 
-Reload Nginx:
+Puis:
 
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
@@ -173,29 +176,53 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ---
 
-## Dépannage
+## CI/CD générique (GitHub Actions, GitLab CI, etc.)
 
-## 403 sur `/tasse/assessment/`
+Pipeline type:
 
-- Vérifier que `out/assessment/index.html` existe
-- Vérifier que le dossier `assessment` a bien été uploadé dans `tasse/`
-- Vérifier les permissions (dossiers `755`, fichiers `644` en général)
+1. `npm ci`
+2. `npm run lint`
+3. `npm run build:root` (ou `build:tasse`)
+4. Publier `out/` vers la cible (S3, FTP, SCP, Pages)
 
-## Assets cassés (CSS/JS)
+Important:
 
-- Vérifier que le build a été fait avec le bon base path:
-  - sous-dossier: `npm run build:tasse`
-  - racine: `npm run build:root`
-
-## Site principal affecté
-
-- Vérifier que tu n'as pas écrasé `public_html` racine
-- Déployer uniquement dans un sous-dossier dédié (`/tasse`)
+- Ne jamais commiter de clés SSH
+- Stocker les secrets dans les variables sécurisées CI
 
 ---
 
-## Notes
+## Dépannage
 
-- Les données de progression utilisateur sont stockées en `localStorage` navigateur
-- L'export PDF actuel est un mode impression navigateur (`Report > Print / Save PDF`)
-- Architecture prête pour évolution DB/API/auth ensuite
+## 403 sur une sous-route (`/assessment/`)
+
+- Vérifier que `out/assessment/index.html` existe
+- Vérifier que le dossier `assessment` a bien été uploadé
+- Vérifier les permissions (`755` dossiers, `644` fichiers)
+
+## CSS/JS cassés
+
+- Vérifier le bon script de build:
+  - racine: `npm run build:root`
+  - sous-dossier: `npm run build:tasse`
+
+## Mauvais dossier de publication
+
+- Vérifier que les fichiers sont dans le dossier servi par le serveur web
+- Vérifier la présence de `index.html` à la racine du dossier publié
+
+---
+
+## Sécurité et confidentialité
+
+- Ne pas exposer d'IP, user, clé SSH ou chemins privés dans la documentation
+- Utiliser des placeholders dans les exemples
+- Garder les secrets en local ou dans le coffre de secrets CI/CD
+
+---
+
+## Notes produit
+
+- Progression et réponses stockées en `localStorage` navigateur
+- Export PDF actuel via impression navigateur (`Report > Print / Save PDF`)
+- Architecture prête pour extension API/DB/auth
