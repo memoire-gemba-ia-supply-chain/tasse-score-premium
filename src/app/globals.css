@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050b18;
+  --foreground: #e2e8f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-manrope);
+  --font-display: var(--font-playfair);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), "Avenir Next", "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+.font-display {
+  font-family: var(--font-display), "Bodoni 72", serif;
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.3);
+}
+
+.no-print {
+  display: flex;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
