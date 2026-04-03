@@ -1,36 +1,201 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TASSE Score Premium
 
-## Getting Started
+Application web premium pour évaluer la vulnérabilité aux risques dans 5 domaines (framework TASSE Score).
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router)
+- React 19 + TypeScript
+- Tailwind CSS v4
+- Framer Motion
+- Recharts
+- FontAwesome + Lucide icons
+
+## Mode de déploiement
+
+Le projet est configuré en **export statique** (`output: "export"`).
+
+Cela signifie:
+
+- Pas besoin de Node.js sur le serveur de production (shared hosting OK)
+- Le build génère des fichiers HTML/CSS/JS dans `out/`
+- Déploiement simple par `scp`, `rsync`, FTP ou File Manager cPanel
+
+## Scripts utiles
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev         # développement local
+npm run lint        # lint
+npm run build       # build selon NEXT_PUBLIC_BASE_PATH actuel
+npm run build:root  # build pour domaine racine (base path vide)
+npm run build:tasse # build pour sous-dossier /tasse
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Installation locale
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+git clone https://github.com/memoire-gemba-ia-supply-chain/tasse-score-premium.git
+cd tasse-score-premium
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ouvrir: `http://localhost:3000`
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Déploiement détaillé: Shared Hosting (HostGator)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Objectif: publier sur `acode.tech/tasse` sans toucher au site actuel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Le site principal reste inchangé. On déploie uniquement dans un dossier dédié.
 
-## Deploy on Vercel
+### 1. Build pour sous-dossier `/tasse`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+cd tasse-score-premium
+npm install
+npm run build:tasse
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Le build final sera dans `out/`.
+
+### 2. Créer le dossier cible sur le serveur
+
+```bash
+ssh -i ~/.ssh/safetyplant_premium_ed25519 -o IdentitiesOnly=yes zezeuute@108.167.172.119 \
+"mkdir -p ~/public_html/website_2adfe34f/tasse"
+```
+
+### 3. Uploader les fichiers statiques
+
+```bash
+scp -i ~/.ssh/safetyplant_premium_ed25519 -o IdentitiesOnly=yes -r out/* \
+zezeuute@108.167.172.119:~/public_html/website_2adfe34f/tasse/
+```
+
+### 4. Vérifier
+
+```bash
+curl -I https://acode.tech/tasse/
+curl -I https://acode.tech/tasse/assessment/
+curl -I https://acode.tech/tasse/results/
+curl -I https://acode.tech/tasse/report/
+```
+
+Tu dois obtenir `HTTP 200`.
+
+### 5. Mise à jour future
+
+Pour chaque nouvelle version:
+
+```bash
+npm run build:tasse
+scp -i ~/.ssh/safetyplant_premium_ed25519 -o IdentitiesOnly=yes -r out/* \
+zezeuute@108.167.172.119:~/public_html/website_2adfe34f/tasse/
+```
+
+Aucun impact sur `public_html` racine tant que tu restes dans `.../tasse`.
+
+---
+
+## Déploiement HostGator sans SSH (cPanel File Manager)
+
+Si SSH n'est pas disponible:
+
+1. `npm run build:tasse`
+2. Compresser localement le dossier `out/` en zip
+3. Dans cPanel > File Manager, aller dans `public_html/website_2adfe34f/tasse`
+4. Upload du zip
+5. Extract du zip
+6. Vérifier que `index.html` est directement dans `tasse/`
+
+---
+
+## Déploiement sur d'autres plateformes
+
+## 1) cPanel shared hosting (générique)
+
+Même procédure que HostGator:
+
+- Build static (`npm run build:root` ou `npm run build:tasse`)
+- Upload contenu de `out/` dans le dossier web cible
+
+## 2) Netlify (Static)
+
+- Connecter repo GitHub
+- Build command: `npm run build:root` (ou `npm run build:tasse` selon besoin)
+- Publish directory: `out`
+
+## 3) Cloudflare Pages (Static)
+
+- Connecter repo
+- Build command: `npm run build:root`
+- Output directory: `out`
+
+## 4) Vercel
+
+Deux options:
+
+- Option A: rester en export statique (comme ci-dessus)
+- Option B: supprimer `output: "export"` si tu veux des fonctionnalités serveur plus tard
+
+## 5) VPS (Nginx + fichiers statiques)
+
+Build:
+
+```bash
+npm run build:tasse
+```
+
+Copier `out/` vers `/var/www/tasse` puis config Nginx:
+
+```nginx
+server {
+  listen 80;
+  server_name acode.tech;
+
+  root /var/www/main-site;
+  index index.html;
+
+  location /tasse/ {
+    alias /var/www/tasse/;
+    try_files $uri $uri/ /tasse/index.html;
+  }
+}
+```
+
+Reload Nginx:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+---
+
+## Dépannage
+
+## 403 sur `/tasse/assessment/`
+
+- Vérifier que `out/assessment/index.html` existe
+- Vérifier que le dossier `assessment` a bien été uploadé dans `tasse/`
+- Vérifier les permissions (dossiers `755`, fichiers `644` en général)
+
+## Assets cassés (CSS/JS)
+
+- Vérifier que le build a été fait avec le bon base path:
+  - sous-dossier: `npm run build:tasse`
+  - racine: `npm run build:root`
+
+## Site principal affecté
+
+- Vérifier que tu n'as pas écrasé `public_html` racine
+- Déployer uniquement dans un sous-dossier dédié (`/tasse`)
+
+---
+
+## Notes
+
+- Les données de progression utilisateur sont stockées en `localStorage` navigateur
+- L'export PDF actuel est un mode impression navigateur (`Report > Print / Save PDF`)
+- Architecture prête pour évolution DB/API/auth ensuite

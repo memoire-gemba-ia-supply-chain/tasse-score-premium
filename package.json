@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:root": "NEXT_PUBLIC_BASE_PATH= next build",
+    "build:tasse": "NEXT_PUBLIC_BASE_PATH=/tasse next build",
     "start": "next start",
     "lint": "eslint"
   },
